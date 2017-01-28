@@ -12,6 +12,10 @@ Reference
 https://github.com/bzamecnik/deep-instrument-heroku
 https://realpython.com/blog/python/flask-by-example-part-1-project-setup/
 
+Add git remote:
+
+heroku git:remote -a deepfundamental-stage
+
 ### Contribution guidelines ###
 
 
