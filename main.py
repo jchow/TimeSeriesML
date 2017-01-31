@@ -2,6 +2,8 @@ from flask import Flask, redirect, render_template, request
 from gevent.wsgi import WSGIServer
 import logging
 import sys
+from predict import ExampleClassifier
+from model import ModelWorker
 
 app = Flask(__name__)
 
@@ -12,9 +14,22 @@ app.logger.setLevel(logging.ERROR)
 def hello():
     return "Hello World"
 
-@app.route('/classify/ticker', methods=['POST'])
+@app.route('/classify/example')
 def classify():
-    return redirect('/')
+    model = ExampleClassifier('models')
+    return model.predict()
+    
+@app.route('/evaluate/model')
+def evaluate():
+    worker = ModelWorker('models')
+    results = worker.evaluate_model('iris')
+    return "Baseline: %.2f%% (%.2f%%)" % (results.mean()*100, results.std()*100)
+    
+@app.route('/build/model')
+def build():
+    worker = ModelWorker('models')
+    worker.build_model("iris")
+    return "Done building and compiling model"
     
 if __name__ == '__main__':
     app.debug = True
