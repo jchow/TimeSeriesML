@@ -87,3 +87,7 @@ ENV/
 
 # Rope project settings
 .ropeproject
+
+# IDE user specific settings
+.idea/workspace.xml
+.idea/tasks.xml

@@ -4,11 +4,14 @@ import logging
 import sys
 from predict import ExampleClassifier
 from model import ModelWorker
+from fundamental.fundamentalmodeldatapreparer import FundamentalModelDataPreparer
+from fundamental.fundamentalworker import FundamentalWorker
 
 app = Flask(__name__)
 
 app.logger.addHandler(logging.StreamHandler(sys.stdout))
 app.logger.setLevel(logging.ERROR)
+
 
 @app.route('/')
 def hello():
@@ -30,6 +33,14 @@ def build():
     worker = ModelWorker('models')
     worker.build_model("iris")
     return "Done building and compiling model"
+
+
+@app.route('/build/fundamental')
+def buildFundamentals():
+    preparer = FundamentalModelDataPreparer()
+    worker = FundamentalWorker()
+    worker.build_model(preparer.get_data())
+
     
 if __name__ == '__main__':
     app.debug = True
