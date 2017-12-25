@@ -23,9 +23,8 @@ def isStationary(dataFrameTable):
 class FundamentalModelDataPreparer(object):
     quandl.ApiConfig.api_key = "kEEQaKt7AbyJ4yRLDHRg"
 
-    def get_data(self, ticker):
-        tickers = []
-        tickers.append(ticker)
+    def get_data(self, ticker, ticker_baseline='NASDAQOMX/COMP'):
+        tickers = [ticker]
         '''
         columns = ['accoci', 'assets', 'assetsc',
        'assetsnc', 'assetturnover', 'bvps', 'capex', 'cashneq',
@@ -52,27 +51,37 @@ class FundamentalModelDataPreparer(object):
 
         ''' Process data '''
         data_table = data_table.dropna(axis=0, how='any')
-        if not isStationary(data_table):
-            data_table = convert2Stationary(data_table)
 
         ''' Assign price performance - labels for supervised learning '''
 
-        ''' Get the prices'''
+        '''Get the prices - start date align with fundamental start date. End date is 1 year after the last date of 
+        the fundamental data '''
         start = pd.to_datetime(data_table['calendardate'].values[0])
-        end = pd.to_datetime(data_table['calendardate'].values[0])
+        end = pd.to_datetime(data_table['calendardate'].values[0]) + np.timedelta64(1, 'Y')
         prices = quandl.get('EOD/' + ticker, start_date=start.strftime('%Y-%m-%d'), end_date=end.strftime('%Y-%m-%d'))
-        adj_close_prices = prices.loc[:, "Adj_Close"]
+        baseline_prices = quandl.get(ticker_baseline, start_date=start.strftime('%Y-%m-%d'), end_date=end.strftime('%Y-%m-%d'))
+        all_prices = prices.assign(Baseline=baseline_prices['Index Value'])
+        all_close_prices = all_prices.loc[:, ['Adj_Close', 'Baseline']]
 
         target_dates = data_table['calendardate'].values
         # To slice prices according to a set of dates
         # target_prices = adj_close_prices[adj_close_prices.index.isin(target_dates)]
 
-        ''' Iterate target prices to look take average price for 10 days before the indicator date'''
+        ''' Iterate target prices to take average price for 10 days before the indicator date'''
         data_table.assign(avg_price='')
+        data_table.assign(baseline_price='')
+
         for date in target_dates:
             end_date = date
             start_date = end_date - np.timedelta64(10, 'D')
-            prices_to_avg = adj_close_prices.loc[start_date:end_date]
-            data_table.loc[data_table['calendardate'] == date, ['avg_price']] = prices_to_avg.mean()
+            prices_to_avg = all_close_prices.loc[start_date:end_date]
+            data_table.loc[data_table['calendardate'] == date, ['avg_price']] = prices_to_avg.mean()[0]
+            data_table.loc[data_table['calendardate'] == date, ['baseline_price']] = prices_to_avg.mean()[1]
+
+        ''' Labels - how much does the price after 1 year out perform an index/etf tracking index'''
+        data_table['performance'] = data_table['avg_price']-data_table['baseline_price']
+
+        if not isStationary(data_table):
+            data_table = convert2Stationary(data_table)
 
         return data_table
