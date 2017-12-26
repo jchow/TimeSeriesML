@@ -2,18 +2,19 @@ import quandl as quandl
 import pandas as pd
 import numpy as np
 from statsmodels.tsa.stattools import adfuller
+from sklearn.preprocessing import MinMaxScaler
 
 
 def convert2Stationary(data_table):
-    return None
+    return data_table # TODO make it time stationary by differencing maybe
 
 
-def isStationary(dataFrameTable):
+def isStationary(data_frame_table):
     """ Test for stationary
     :rtype: Boolean
     """
-    for column in dataFrameTable.columns:
-        data = dataFrameTable[column]
+    for column in data_frame_table.columns:
+        data = data_frame_table[column]
         seriesToTest = data.values
         pTestResult = adfuller(seriesToTest)
         if pTestResult[1] > 0.05:
@@ -23,7 +24,22 @@ def isStationary(dataFrameTable):
 class FundamentalModelDataPreparer(object):
     quandl.ApiConfig.api_key = "kEEQaKt7AbyJ4yRLDHRg"
 
-    def get_data(self, ticker, ticker_baseline='NASDAQOMX/COMP'):
+    def get_dataset(self):
+        tickers = ['MSFT', 'AAPL', 'INTC', 'IBM']
+        all_data_table = pd.DataFrame()
+        for ticker in tickers:
+            data_table = self.get_ticker_data(ticker)
+            all_data_table = all_data_table.concat(data_table)
+
+        data_value_arrays = all_data_table.values
+        data_value_arrays = data_value_arrays.astype('float32')
+
+        # normalize features
+        scaler = MinMaxScaler(feature_range=(0, 1))
+        scaled_data_value_arrays = scaler.fit_transform(data_value_arrays)
+        return scaled_data_value_arrays
+
+    def get_ticker_data(self, ticker, ticker_baseline='NASDAQOMX/COMP'):
         tickers = [ticker]
         '''
         columns = ['accoci', 'assets', 'assetsc',
@@ -70,6 +86,7 @@ class FundamentalModelDataPreparer(object):
         ''' Iterate target prices to take average price for 10 days before the indicator date'''
         data_table.assign(avg_price='')
         data_table.assign(baseline_price='')
+        data_table.assign(performance='')
 
         for date in target_dates:
             end_date = date
@@ -78,8 +95,14 @@ class FundamentalModelDataPreparer(object):
             data_table.loc[data_table['calendardate'] == date, ['avg_price']] = prices_to_avg.mean()[0]
             data_table.loc[data_table['calendardate'] == date, ['baseline_price']] = prices_to_avg.mean()[1]
 
-        ''' Labels - how much does the price after 1 year out perform an index/etf tracking index'''
-        data_table['performance'] = data_table['avg_price']-data_table['baseline_price']
+            ''' Labels - how much does the price after 1 year out perform an index/etf tracking index'''
+            start_date_1year = date + np.timedelta64(1, 'Y')
+            end_date_1year = start_date_1year + np.timedelta64(10, 'D')
+            prices_1year_to_avg = all_close_prices.loc[start_date_1year:end_date_1year]
+            data_table.loc[data_table['calendardate'] == date, ['performance']] = prices_1year_to_avg.mean()[0] - prices_1year_to_avg.mean()[1]
+
+        ''' Get rid of dates column as we do not need it '''
+        data_table = data_table.drop(columns=['calendardate'])
 
         if not isStationary(data_table):
             data_table = convert2Stationary(data_table)

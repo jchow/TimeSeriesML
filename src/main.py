@@ -39,7 +39,7 @@ def build():
 def buildFundamentals():
     preparer = FundamentalModelDataPreparer()
     worker = FundamentalWorker()
-    worker.build_model(preparer.get_data())
+    worker.build_model(preparer.get_dataset())
 
     
 if __name__ == '__main__':
