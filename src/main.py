@@ -39,7 +39,11 @@ def build():
 def buildFundamentals():
     preparer = FundamentalModelDataPreparer()
     worker = FundamentalWorker()
-    worker.build_model(preparer.get_dataset())
+    tickers = ['MSFT', 'AAPL']
+    dataset, labels = preparer.get_dataset(tickers)
+    model, test_set = worker.build_model(dataset, labels)
+    result = worker.predict(model, test_set)
+    return "Fitting result: " + result
 
     
 if __name__ == '__main__':

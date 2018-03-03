@@ -4,7 +4,7 @@
     <inspection_tool class="PyPackageRequirementsInspection" enabled="true" level="WARNING" enabled_by_default="true">
       <option name="ignoredPackages">
         <value>
-          <list size="69">
+          <list size="83">
             <item index="0" class="java.lang.String" itemvalue="python-systemd" />
             <item index="1" class="java.lang.String" itemvalue="html5lib" />
             <item index="2" class="java.lang.String" itemvalue="unity-scope-colourlovers" />
@@ -74,6 +74,20 @@
             <item index="66" class="java.lang.String" itemvalue="command-not-found" />
             <item index="67" class="java.lang.String" itemvalue="unity-scope-calculator" />
             <item index="68" class="java.lang.String" itemvalue="Pillow" />
+            <item index="69" class="java.lang.String" itemvalue="functools32" />
+            <item index="70" class="java.lang.String" itemvalue="scipy" />
+            <item index="71" class="java.lang.String" itemvalue="six" />
+            <item index="72" class="java.lang.String" itemvalue="unity-lens-photos" />
+            <item index="73" class="java.lang.String" itemvalue="rope" />
+            <item index="74" class="java.lang.String" itemvalue="cvxopt" />
+            <item index="75" class="java.lang.String" itemvalue="xlwt" />
+            <item index="76" class="java.lang.String" itemvalue="numpy" />
+            <item index="77" class="java.lang.String" itemvalue="adium-theme-ubuntu" />
+            <item index="78" class="java.lang.String" itemvalue="jdcal" />
+            <item index="79" class="java.lang.String" itemvalue="tables" />
+            <item index="80" class="java.lang.String" itemvalue="tensorflow" />
+            <item index="81" class="java.lang.String" itemvalue="matplotlib" />
+            <item index="82" class="java.lang.String" itemvalue="mercurial" />
           </list>
         </value>
       </option>
