@@ -44,7 +44,7 @@ class FundamentalModelDataPreparer(object):
         scaler = MinMaxScaler(feature_range=(0, 1))
         scaled_data_value_arrays = scaler.fit_transform(data_value_arrays)
         sequence_length = scaled_data_value_arrays.shape[0] / len(tickers)  # make each ticker its own sequence
-        return self.to_sequence_data(scaled_data_value_arrays, sequence_length), all_labels
+        return self.to_sequence_data(scaled_data_value_arrays, int(sequence_length)), all_labels
 
     def add_labels(self, all_labels, labels):
         if self.single:
@@ -54,7 +54,7 @@ class FundamentalModelDataPreparer(object):
 
     @staticmethod
     def to_sequence_data(data_arrays, seq_num=1):
-        return data_arrays.reshape((data_arrays.shape[0]/seq_num, seq_num, data_arrays.shape[1]))
+        return data_arrays.reshape((data_arrays.shape[0]//seq_num, seq_num, data_arrays.shape[1]))
 
     def get_ticker_data(self, ticker, ticker_baseline='NASDAQOMX/COMP'):
         tickers = [ticker]
