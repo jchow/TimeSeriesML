@@ -40,9 +40,9 @@ def buildFundamentals():
     preparer = FundamentalModelDataPreparer()
     worker = FundamentalWorker()
     tickers = ['MSFT', 'AAPL']
-    dataset, labels = preparer.get_dataset(tickers)
-    model, test_set = worker.build_model(dataset, labels)
-    result = worker.predict(model, test_set)
+    dataset, labels = preparer.get_dataset_for_RNN(tickers)
+    model, test_set = worker.build_save_model_LSTM(dataset, labels)
+    result = worker.predict(test_set, )
     return "Fitting result: " + result
 
     

@@ -29,22 +29,24 @@ class FundamentalModelDataPreparer(object):
     def __init__(self, predict_single=True):
         self.single = predict_single
 
-    def get_dataset(self, tickers=['MSFT', 'AAPL', 'INTC', 'IBM']):
+    def get_dataset_for_RNN(self, tickers=['MSFT', 'AAPL', 'INTC', 'IBM']):
+        all_labels, scaled_data_value_arrays = self.get_2DShape_array_data(tickers)
+        sequence_length = scaled_data_value_arrays.shape[0] / len(tickers)  # make each ticker its own sequence
+        return self.to_sequence_data(scaled_data_value_arrays, int(sequence_length)), all_labels
+
+    def get_2DShape_array_data(self, tickers):
         all_data_table = pd.DataFrame()
         all_labels = []
         for ticker in tickers:
             data_table, labels = self.get_ticker_data(ticker)
             all_data_table = all_data_table.append(data_table, ignore_index=True)
             self.add_labels(all_labels, labels)
-
         data_value_arrays = all_data_table.values
         data_value_arrays = data_value_arrays.astype('float32')
-
         # normalize features
         scaler = MinMaxScaler(feature_range=(0, 1))
         scaled_data_value_arrays = scaler.fit_transform(data_value_arrays)
-        sequence_length = scaled_data_value_arrays.shape[0] / len(tickers)  # make each ticker its own sequence
-        return self.to_sequence_data(scaled_data_value_arrays, int(sequence_length)), all_labels
+        return all_labels, scaled_data_value_arrays
 
     def add_labels(self, all_labels, labels):
         if self.single:
@@ -91,6 +93,9 @@ class FundamentalModelDataPreparer(object):
         the fundamental data '''
         start = pd.to_datetime(data_table['calendardate'].values[0]) - np.timedelta64(10, 'D')
         end = pd.to_datetime(data_table['calendardate'].values[-1]) + np.timedelta64(1, 'Y')
+        print("------")
+        print(ticker)
+        print("start date: {0}, end date:{1}".format(start.strftime('%Y-%m-%d'), end.strftime('%Y-%m-%d')))
         prices = quandl.get('EOD/' + ticker, start_date=start.strftime('%Y-%m-%d'), end_date=end.strftime('%Y-%m-%d'))
         baseline_prices = quandl.get(ticker_baseline, start_date=start.strftime('%Y-%m-%d'),
                                      end_date=end.strftime('%Y-%m-%d'))

@@ -29,13 +29,13 @@ class TestFundamentalWorker(TestCase):
         expected_test_X, expected_test_y = input_data[3:, :], labels[3:]
 
         worker = FundamentalWorker()
-        model, actual_test, scaler = worker.build_model(input_data, labels, False)
+        model, actual_test, scaler = worker.build_save_model_LSTM(input_data, labels, False)
 
         npt.assert_allclose(actual_test[0], expected_test_X)
         npt.assert_allclose(actual_test[1], expected_test_y)
         self.assertIsNotNone(model)
 
-        test_result, rmse = worker.predict(model, actual_test, scaler)
+        test_result, rmse = worker.predict(actual_test, scaler)
         self.assertTupleEqual(test_result.shape, (2, 1))
         self.assertIs(type(test_result), np.ndarray)
         print('rmse = ', rmse)

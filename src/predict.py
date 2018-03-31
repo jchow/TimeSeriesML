@@ -9,7 +9,7 @@ class ExampleClassifier(object):
         
         worker = ModelWorker('models')
         model = worker.load_model('iris_model')
-        predictions = model.predict(X_test)
+        predictions = model.predict(,
         
         result_predictions = str(predictions)
         # result_labels = str(self.inverse_encode(predictions, labels))

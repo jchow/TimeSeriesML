@@ -4,7 +4,7 @@
     <inspection_tool class="PyPackageRequirementsInspection" enabled="true" level="WARNING" enabled_by_default="true">
       <option name="ignoredPackages">
         <value>
-          <list size="83">
+          <list size="84">
             <item index="0" class="java.lang.String" itemvalue="python-systemd" />
             <item index="1" class="java.lang.String" itemvalue="html5lib" />
             <item index="2" class="java.lang.String" itemvalue="unity-scope-colourlovers" />
@@ -88,6 +88,7 @@
             <item index="80" class="java.lang.String" itemvalue="tensorflow" />
             <item index="81" class="java.lang.String" itemvalue="matplotlib" />
             <item index="82" class="java.lang.String" itemvalue="mercurial" />
+            <item index="83" class="java.lang.String" itemvalue="subprocess32" />
           </list>
         </value>
       </option>
