@@ -31,3 +31,15 @@ class TestIntegration(TestCase):
         plt.legend(['Actual', 'Predicted'], loc=2)
         plt.show()
 
+    def test_with_intrinio(self):
+        preparer = FundamentalModelDataPreparer()
+        worker = FundamentalWorker()
+        dataset, labels = preparer.get_dataset_from_intrinio_for_RNN()
+        save_weights_at, test_set, scaler = worker.build_save_model_LSTM(dataset, labels, 'intrinio')
+        result, mse = worker.predict(save_weights_at, test_set, scaler)
+
+        print('==== result ====')
+        print('predicted ----')
+        print(result[0])
+        print('test labels ----')
+        print(result[1])

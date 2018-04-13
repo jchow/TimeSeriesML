@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 from statsmodels.tsa.stattools import adfuller
 from sklearn.preprocessing import MinMaxScaler
+import os
 
 
 def convert2Stationary(data_table):
@@ -29,6 +30,63 @@ class FundamentalModelDataPreparer(object):
     def __init__(self, predict_single=True):
         self.single = predict_single
 
+    def get_dataset_from_intrinio_for_RNN(self):
+        print('---- From intrinio ----')
+        all_data_table = pd.DataFrame()
+        all_labels = []
+
+        # Read data from files
+        resources_path = '/home/jeffchow/Dev/Projects/deepfundamental/resources'
+        files = os.listdir(resources_path)
+        for file in files:
+            print(file)
+            df = pd.read_csv(os.path.join(resources_path, file))
+            all_data_table = all_data_table.append(df, ignore_index=True)
+            print(all_data_table.shape)
+
+        all_data_table = all_data_table.replace('nm', np.nan)
+        threshold = int(0.9 * all_data_table.shape[0])
+        all_data_table = all_data_table.dropna(axis='columns', thresh=threshold)
+        all_data_table = all_data_table.dropna(axis='rows', how='any')
+        all_data_table.sort_values('date', ascending=True, inplace=True)
+        print(all_data_table.shape)
+
+        sequence_df = pd.DataFrame()
+        sequence_length = 4  # 4 quarters as a sequence
+        unique_tickers = all_data_table['ticker'].unique().tolist()
+        for ticker in unique_tickers:
+            ticker_df = all_data_table[all_data_table['ticker'] == ticker]
+            idx = 0
+            while idx < ticker_df.shape[0] - sequence_length:
+                sequence_df = sequence_df.append(ticker_df[idx:idx + sequence_length], ignore_index=True)
+                labels_perf = self.get_performance_for_labels(sequence_df.iloc[idx, :],
+                                                         sequence_df.iloc[idx + sequence_length-1, :])
+                all_labels.append(labels_perf)
+                idx += sequence_length
+
+        sequence_df.drop(['ticker', 'date'], axis=1, inplace=True)
+        # all_data_table.drop(['close_price_next_quarter', 'baseline_price_next_quarter'], axis=1)
+
+        print(sequence_df.shape)
+
+        # while all_data_table.shape[0] % sequence_length != 0:
+        #     all_data_table.drop(all_data_table.head(1).index, inplace=True)
+
+        scaled_data_value_arrays = self.get_scaled_data_value_arrays(sequence_df)
+        return self.to_sequence_data(scaled_data_value_arrays, int(sequence_length)), all_labels
+
+    '''
+    sequence_df has Q1, Q2, Q3, Q4 data
+    '''
+
+    def get_performance_for_labels(self, sequence_df_start, sequence_df_end):
+        price_perf = sequence_df_end['close_price_next_quarter'] - sequence_df_start['close_price'] / sequence_df_start[
+            'close_price']
+        baseline_perf = sequence_df_end['baseline_price_next_quarter'] - sequence_df_start['baseline_price'] / \
+                        sequence_df_start['baseline_price']
+        perf = price_perf - baseline_perf / baseline_perf
+        return perf
+
     def get_dataset_for_RNN(self, tickers=['MSFT', 'AAPL', 'INTC', 'IBM']):
         all_labels, scaled_data_value_arrays = self.get_2DShape_array_data(tickers)
         sequence_length = scaled_data_value_arrays.shape[0] / len(tickers)  # make each ticker its own sequence
@@ -41,12 +99,17 @@ class FundamentalModelDataPreparer(object):
             data_table, labels = self.get_ticker_data(ticker)
             all_data_table = all_data_table.append(data_table, ignore_index=True)
             self.add_labels(all_labels, labels)
+
+        scaled_data_value_arrays = self.get_scaled_data_value_arrays(all_data_table)
+        return all_labels, scaled_data_value_arrays
+
+    def get_scaled_data_value_arrays(self, all_data_table):
         data_value_arrays = all_data_table.values
         data_value_arrays = data_value_arrays.astype('float32')
         # normalize features
         scaler = MinMaxScaler(feature_range=(0, 1))
         scaled_data_value_arrays = scaler.fit_transform(data_value_arrays)
-        return all_labels, scaled_data_value_arrays
+        return scaled_data_value_arrays
 
     def add_labels(self, all_labels, labels):
         if self.single:
@@ -56,7 +119,7 @@ class FundamentalModelDataPreparer(object):
 
     @staticmethod
     def to_sequence_data(data_arrays, seq_num=1):
-        return data_arrays.reshape((data_arrays.shape[0]//seq_num, seq_num, data_arrays.shape[1]))
+        return data_arrays.reshape((data_arrays.shape[0] // seq_num, seq_num, data_arrays.shape[1]))
 
     def get_ticker_data(self, ticker, ticker_baseline='NASDAQOMX/COMP'):
         tickers = [ticker]
@@ -127,7 +190,7 @@ class FundamentalModelDataPreparer(object):
             prices_3mths_to_avg = all_close_prices.loc[start_date_3mths:end_date_3mths]
             if not prices_3mths_to_avg.empty:
                 data = (prices_3mths_to_avg.mean()[0] - prices_to_avg.mean()[0]) / prices_to_avg.mean()[0] - \
-                   (prices_3mths_to_avg.mean()[1] - prices_to_avg.mean()[1]) / prices_to_avg.mean()[1]
+                       (prices_3mths_to_avg.mean()[1] - prices_to_avg.mean()[1]) / prices_to_avg.mean()[1]
                 performance_label.append(data)
 
         ''' Get rid of dates column as we do not need it '''
