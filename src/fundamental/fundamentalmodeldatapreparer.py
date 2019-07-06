@@ -4,6 +4,7 @@ import numpy as np
 from statsmodels.tsa.stattools import adfuller
 from sklearn.preprocessing import MinMaxScaler
 import os
+import logging
 
 
 def convert2Stationary(data_table):
@@ -17,45 +18,99 @@ def isStationary(data_frame_table):
     for column in data_frame_table.columns:
         data = data_frame_table[column]
         seriesToTest = data.values
-        ''' Note that maxlag should be < nobs (num of observations), if not specified it is calculated as
-        12*(nobs/100)^{1/4}. Need to specify it if nobs is too small'''
+        # Note that maxlag should be < nobs (num of observations), if not specified it is calculated as
+        # 12*(nobs/100)^{1/4}. Need to specify it if nobs is too small
         pTestResult = adfuller(seriesToTest, maxlag=4)
         if pTestResult[1] > 0.05:
             return False
+
+    return True
 
 
 class FundamentalModelDataPreparer(object):
     quandl.ApiConfig.api_key = "kEEQaKt7AbyJ4yRLDHRg"
 
-    def __init__(self, predict_single=True):
+    def __init__(self, predict_single=True, file='temp.log', loglevel=logging.INFO):
         self.single = predict_single
 
-    def get_dataset_from_intrinio_for_RNN(self):
-        print('---- From intrinio ----')
-        all_data_table = pd.DataFrame()
-        all_labels = []
+        self.logger = logging.getLogger('preparer')
+        fh = logging.FileHandler(file)
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        fh.setFormatter(formatter)
+        self.logger.addHandler(fh)
+
+        self.logger.setLevel(loglevel)
+
+        self.logger.info('creating an instance of data preparer')
+
+    def clean_data(self, stocks_df):
+        # Drop unnecessary columns first, o/w more rows will be deleted because of null values
+        stocks_df.drop(['close_price_next_quarter', 'baseline_price_next_quarter'], axis=1, inplace=True)
+
+        stocks_df = stocks_df.replace('nm', np.nan)
+        threshold = int(0.98 * stocks_df.shape[0])
+        stocks_df.dropna(axis='columns', thresh=threshold, inplace=True)
+        stocks_df.dropna(axis='rows', how='any', inplace=True)
+        stocks_df.sort_values('date', ascending=True, inplace=True)
+        self.logger.debug(stocks_df.head(1))
+        return stocks_df
+
+    def label_data(self, stocks_df):
+        labeled_data = stocks_df.copy()
+        labeled_data['perf'] = labeled_data.groupby(['ticker'])['close_price'].diff().\
+            divide(labeled_data.groupby(['ticker'])['close_price'].shift())
+        labeled_data.dropna(axis='rows', how='any', inplace=True) # drop all the nan due to shifting
+        self.logger.debug(labeled_data['perf'][0:7])
+        return labeled_data
+
+    '''
+    Data from each ticker is appended to form one data frame.
+    Multiple time series are joined together treating stocks as one 
+    of the feature.
+    
+    '''
+    def get_data_from_intrinio_file(self):
+        stocks_data = pd.DataFrame()
 
         # Read data from files
         resources_path = '/home/jeffchow/Dev/Projects/deepfundamental/resources'
         files = os.listdir(resources_path)
-        for file in files:
-            print(file)
-            df = pd.read_csv(os.path.join(resources_path, file))
-            all_data_table = all_data_table.append(df, ignore_index=True)
-            print(all_data_table.shape)
+        for f in files:
+            self.logger.debug(f)
+            df = pd.read_csv(os.path.join(resources_path, f))
+            stocks_data = stocks_data.append(df, ignore_index=True)
+            self.logger.debug(stocks_data.shape) # are they of the same shape?
 
-        all_data_table = all_data_table.replace('nm', np.nan)
-        threshold = int(0.9 * all_data_table.shape[0])
-        all_data_table = all_data_table.dropna(axis='columns', thresh=threshold)
-        all_data_table = all_data_table.dropna(axis='rows', how='any')
-        all_data_table.sort_values('date', ascending=True, inplace=True)
-        print(all_data_table.shape)
+        # Let's clean the data after appending all the data
+        self.logger.debug("----- shape before cleaning %s", stocks_data.shape)
+        stocks_data = self.clean_data(stocks_data)
+        self.logger.debug(" ---- shape after cleaning data %s", stocks_data.shape)
+        self.logger.debug(" ---- columns remain: %s", stocks_data.columns.values)
 
+        # Shift the close price column per stock and then find %diff per stock group
+        # This will be the price performance
+        labeled_stocks_data = self.label_data(stocks_data)
+
+        labeled_stocks_data.drop(['date'], axis=1, inplace=True)
+
+        # convert stocks symbol to numerical
+        labeled_stocks_data['ticker'] = labeled_stocks_data['ticker'].astype('category')
+        labeled_stocks_data['ticker'] = labeled_stocks_data['ticker'].cat.codes
+        self.logger.debug("Null data - %s", labeled_stocks_data.isnull().sum().sum())
+
+        # normalized/scaled data - apart from ticker data
+        scaled_data_arrays, labels = self.get_scaled_data_arrays(labeled_stocks_data)
+
+        self.logger.debug("final data shape %s", scaled_data_arrays.shape)
+
+        return scaled_data_arrays, labels
+
+        '''
         sequence_df = pd.DataFrame()
         sequence_length = 4  # 4 quarters as a sequence
-        unique_tickers = all_data_table['ticker'].unique().tolist()
+        unique_tickers = stocks_data['ticker'].unique().tolist()
         for ticker in unique_tickers:
-            ticker_df = all_data_table[all_data_table['ticker'] == ticker]
+            ticker_df = stocks_data[stocks_data['ticker'] == ticker]
             idx = 0
             while idx < ticker_df.shape[0] - sequence_length:
                 sequence_df = sequence_df.append(ticker_df[idx:idx + sequence_length], ignore_index=True)
@@ -65,16 +120,21 @@ class FundamentalModelDataPreparer(object):
                 idx += sequence_length
 
         sequence_df.drop(['ticker', 'date'], axis=1, inplace=True)
-        # all_data_table.drop(['close_price_next_quarter', 'baseline_price_next_quarter'], axis=1)
+        # stocks_data.drop(['close_price_next_quarter', 'baseline_price_next_quarter'], axis=1)
 
+        print("----- sequence -------")
         print(sequence_df.shape)
+        print(sequence_df.head())
+        print(sequence_df.tail())
 
-        # while all_data_table.shape[0] % sequence_length != 0:
-        #     all_data_table.drop(all_data_table.head(1).index, inplace=True)
+        # while stocks_data.shape[0] % sequence_length != 0:
+        #     stocks_data.drop(stocks_data.head(1).index, inplace=True)
 
-        scaled_data_value_arrays = self.get_scaled_data_value_arrays(sequence_df)
-        return self.to_sequence_data(scaled_data_value_arrays, int(sequence_length)), all_labels
-
+        scaled_data_arrays = self.get_scaled_data_arrays(sequence_df)
+        
+        
+        return self.to_sequence_data(scaled_data_arrays, int(sequence_length)), all_labels
+        '''
     '''
     sequence_df has Q1, Q2, Q3, Q4 data
     '''
@@ -103,13 +163,20 @@ class FundamentalModelDataPreparer(object):
         scaled_data_value_arrays = self.get_scaled_data_value_arrays(all_data_table)
         return all_labels, scaled_data_value_arrays
 
-    def get_scaled_data_value_arrays(self, all_data_table):
+    def get_scaled_data_arrays(self, all_data_table):
+        labels = all_data_table['perf'].values.reshape(-1,1)
+        all_data_table.drop(['perf'], axis=1, inplace=True)
+
         data_value_arrays = all_data_table.values
         data_value_arrays = data_value_arrays.astype('float32')
+
         # normalize features
         scaler = MinMaxScaler(feature_range=(0, 1))
-        scaled_data_value_arrays = scaler.fit_transform(data_value_arrays)
-        return scaled_data_value_arrays
+        scaled_data_arrays = scaler.fit_transform(data_value_arrays)
+
+        scaled_labels = scaler.fit_transform(labels)
+
+        return scaled_data_arrays, scaled_labels.flatten()
 
     def add_labels(self, all_labels, labels):
         if self.single:

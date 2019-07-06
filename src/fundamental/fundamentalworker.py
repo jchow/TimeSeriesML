@@ -1,53 +1,73 @@
+import logging
+import os
+from math import sqrt
+
+from keras.callbacks import ModelCheckpoint
 from keras.layers import Dense
 from keras.layers import LSTM
 from keras.models import Sequential
-from keras.models import load_model 
-from keras.callbacks import ModelCheckpoint
-from sklearn.preprocessing import MinMaxScaler
+from keras.models import load_model
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error
-from math import sqrt
-import os
 
 
 class FundamentalWorker(object):
-    def __init__(self):
-        pass
+    def __init__(self, file='temp.log', loglevel=logging.INFO):
+        self.logger = logging.getLogger('worker')
+        fh = logging.FileHandler(file)
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        fh.setFormatter(formatter)
+        self.logger.addHandler(fh)
 
-    def build_save_model_MLP(self, data_value_arrays, labels, plot=True):
-        pass
+        self.logger.setLevel(loglevel)
+        self.logger.info('creating an instance of data preparer')
 
-    def build_save_model_LSTM(self, data_value_arrays, labels, custom_name='', plot=True):
-        scaler = MinMaxScaler(feature_range=(0, 1))
-        scaled_labels = scaler.fit_transform(labels)
+    def predict_random_forest(self, data_value_arrays, labels):
+
+        model = RandomForestRegressor(n_estimators=1000, n_jobs=-1, random_state=0)
 
         # Split into train and test sets 7-3
-        test_X, test_Y, train_X, train_Y = self.split_tran_test_data(data_value_arrays, scaled_labels)
+        X_train, y_train, X_test, y_test = self.split_tran_test_data(data_value_arrays, labels)
 
-        print('------ test_Y after split-------')
-        print(test_Y.shape)
-        print('------ test_x after split-------')
-        print(test_X.shape)
+        model.fit(X_train, y_train)
+        y_predicted = model.predict(X_test)
+
+        rmse = sqrt(mean_squared_error(y_predicted, y_test))
+
+        return y_predicted, rmse
+
+    def build_save_model_LSTM(self, data_value_arrays, labels, custom_name='', plot=True):
+
+        # Split into train and test sets 7-3
+        X_train, y_train, X_test, y_test = self.split_tran_test_data(data_value_arrays, labels)
+
+        self.logger.debug('------ X_test shape = %s', X_test.shape)
+        self.logger.debug('------ y_test shape = %s', X_test.shape)
+        self.logger.debug('------ X_train shape = %s', X_train.shape)
+        self.logger.debug('------ y_train shape = %s', X_train.shape)
+
         model = Sequential()
-        model.add(LSTM(50, input_shape=(train_X.shape[1], train_X.shape[2])))
+        model.add(LSTM(50, input_shape=(X_train.shape[1], X_train.shape[2])))
         model.add(Dense(1))
         model.compile(loss='mae', optimizer='adam')
 
-        print('------- Model Summary -------')
-        print(model.summary())
+        self.logger.info('------- Model Summary -------')
+        self.logger.info(model.summary())
+
         # fit the network
         save_weights_at = os.path.join('keras_models',
                                        custom_name+'_Stock_Fundamental_RNN_weights.hdf5')
         save_best = ModelCheckpoint(save_weights_at, monitor='val_loss', verbose=0,
                                     save_best_only=True, save_weights_only=False, mode='min',
                                     period=1)
-        history = model.fit(train_X, train_Y, epochs=30, batch_size=10, validation_data=(test_X, test_Y), verbose=2,
+        history = model.fit(X_train, y_train, epochs=30, batch_size=10, validation_data=(X_test, y_test), verbose=2,
                             shuffle=False, callbacks=[save_best])
 
         # plot history
         if plot:
             self.plot_result(history)
 
-        return save_weights_at, (test_X, test_Y), scaler
+        return save_weights_at, (X_test, y_test)
 
     def plot_result(self, history):
         pass
@@ -56,28 +76,42 @@ class FundamentalWorker(object):
         # pyplot.legend()
         # pyplot.show()
 
-    def split_tran_test_data(self, data_value_arrays, labels):
-        train_number = int(0.7 * data_value_arrays.shape[0])
-        train_X, train_y = data_value_arrays[:train_number, :], labels[:train_number]
-        test_X, test_y = data_value_arrays[train_number:, :], labels[train_number:]
-        print('---- split ----')
-        print(train_number)
-        print(labels)
-        return test_X, test_y, train_X, train_y
+    def split_tran_test_data(self, data_value_arrays, y):
+        # why not use sklearn train test split?
+        # Version of sklearn below 0.21 does not have shuffle as parameter
+        # X_train, X_test, y_train, y_test = train_test_split(data_value_arrays, y, test_size=0.2, shuffle=False)
 
-    def predict(self, save_weights_at, test_set, scaler):
+        # For time series this can be done easily
+
+        train_number = int(0.8 * data_value_arrays.shape[0])
+        X_train, y_train = data_value_arrays[:train_number, :], y[:train_number]
+        X_test, y_test = data_value_arrays[train_number:, :], y[train_number:]
+
+        self.logger.debug("-- Split data -- ")
+        return X_train, y_train, X_test, y_test
+
+    def predict(self, save_weights_at, test_set):
         model = load_model(save_weights_at)
+
         test_X = test_set[0]
         test_y = test_set[1]
 
-        print('------ test y before scaler -----')
-        print(test_y)
-
         predicted_y = model.predict(test_X)
 
-        print('------ predicted y before scaler -----')
-        print(predicted_y)
+        self.logger.debug('------ test y  -----')
+        self.logger.debug(test_y)
 
+        self.logger.debug('------ predicted y -----')
+        self.logger.debug(predicted_y)
+
+        flatten_predicted_y = predicted_y.flatten().tolist()
+
+        # Found the predicted error
+        rmse = sqrt(mean_squared_error(flatten_predicted_y, test_y))
+
+        return flatten_predicted_y, rmse
+
+        '''
         # No need to invert transform scaling? - basically the labels are not part of the input data and have different
         #  scaling. We might need to separately scale the label.
         inv_predicted_y = scaler.inverse_transform(predicted_y)
@@ -98,3 +132,4 @@ class FundamentalWorker(object):
         # inv_predicted_y = scaler.inverse_transform(predicted_y_with_test)
 
         # For the actual y
+        '''
