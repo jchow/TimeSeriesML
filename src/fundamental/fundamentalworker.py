@@ -9,18 +9,34 @@ from keras.models import Sequential
 from keras.models import load_model
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_squared_log_error
+from lightgbm import LGBMRegressor
+from loggermixin import LoggerMixin
 
 
-class FundamentalWorker(object):
+class FundamentalWorker(LoggerMixin, object):
     def __init__(self, file='temp.log', loglevel=logging.INFO):
-        self.logger = logging.getLogger('worker')
-        fh = logging.FileHandler(file)
-        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-        fh.setFormatter(formatter)
-        self.logger.addHandler(fh)
+        super.__init__(file, loglevel)
+        self.logger.debug('Created an instance of ', self.__class__.__name__)
 
-        self.logger.setLevel(loglevel)
-        self.logger.info('creating an instance of data preparer')
+    def predict_light_gbm(self, data_value_arrays, labels):
+
+        # Split into train and test sets 7-3
+        X_train, y_train, X_test, y_test = self.split_tran_test_data(data_value_arrays, labels)
+
+        model = LGBMRegressor(n_estimators=1000, learning_rate=0.01)
+
+        model.fit(X_train, y_train)
+        y_predicted = model.predict(X_test)
+
+        rmse = self.reg_error(y_predicted, y_test)
+
+        return y_predicted, rmse
+
+    @staticmethod
+    def reg_error(y_predicted, y_test):
+        # return sqrt(mean_squared_error(y_predicted, y_test))
+        return sqrt(mean_squared_log_error(y_predicted, y_test))
 
     def predict_random_forest(self, data_value_arrays, labels):
 
@@ -32,7 +48,7 @@ class FundamentalWorker(object):
         model.fit(X_train, y_train)
         y_predicted = model.predict(X_test)
 
-        rmse = sqrt(mean_squared_error(y_predicted, y_test))
+        rmse = self.reg_error(y_predicted, y_test)
 
         return y_predicted, rmse
 
@@ -46,8 +62,9 @@ class FundamentalWorker(object):
         self.logger.debug('------ X_train shape = %s', X_train.shape)
         self.logger.debug('------ y_train shape = %s', X_train.shape)
 
+        print('X_train shape:', X_train.shape)
         model = Sequential()
-        model.add(LSTM(50, input_shape=(X_train.shape[1], X_train.shape[2])))
+        model.add(LSTM(50, input_shape=(X_train.shape[0], X_train.shape[1])))
         model.add(Dense(1))
         model.compile(loss='mae', optimizer='adam')
 
@@ -107,7 +124,7 @@ class FundamentalWorker(object):
         flatten_predicted_y = predicted_y.flatten().tolist()
 
         # Found the predicted error
-        rmse = sqrt(mean_squared_error(flatten_predicted_y, test_y))
+        rmse = self.reg_error(flatten_predicted_y, test_y)
 
         return flatten_predicted_y, rmse
 
@@ -133,3 +150,16 @@ class FundamentalWorker(object):
 
         # For the actual y
         '''
+
+    '''
+    For the simplest guess for future performance, use the performance of T-1 to predict T
+    '''
+    def predict_baseline(self, data_array, labels):
+        # Split into train and test sets 7-3
+        X_train, y_train, X_test, y_test = self.split_tran_test_data(data_array, labels)
+
+        y_predicted = y_test[:-1]
+        y_test_shift = y_test[1:]
+        rmse = self.reg_error(y_predicted, y_test_shift)
+
+        return y_predicted, rmse

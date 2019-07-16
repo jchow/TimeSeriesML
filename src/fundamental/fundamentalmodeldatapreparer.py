@@ -5,6 +5,7 @@ from statsmodels.tsa.stattools import adfuller
 from sklearn.preprocessing import MinMaxScaler
 import os
 import logging
+from loggermixin import LoggerMixin
 
 
 def convert2Stationary(data_table):
@@ -27,28 +28,19 @@ def isStationary(data_frame_table):
     return True
 
 
-class FundamentalModelDataPreparer(object):
+class FundamentalModelDataPreparer(LoggerMixin, object):
     quandl.ApiConfig.api_key = "kEEQaKt7AbyJ4yRLDHRg"
 
-    def __init__(self, predict_single=True, file='temp.log', loglevel=logging.INFO):
-        self.single = predict_single
-
-        self.logger = logging.getLogger('preparer')
-        fh = logging.FileHandler(file)
-        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-        fh.setFormatter(formatter)
-        self.logger.addHandler(fh)
-
-        self.logger.setLevel(loglevel)
-
-        self.logger.info('creating an instance of data preparer')
+    def __init__(self, file='temp.log', loglevel=logging.INFO):
+        super.__init__(file, loglevel)
+        self.logger.debug('Created an instance of ', self.__class__.__name__)
 
     def clean_data(self, stocks_df):
         # Drop unnecessary columns first, o/w more rows will be deleted because of null values
         stocks_df.drop(['close_price_next_quarter', 'baseline_price_next_quarter'], axis=1, inplace=True)
 
         stocks_df = stocks_df.replace('nm', np.nan)
-        threshold = int(0.98 * stocks_df.shape[0])
+        threshold = int(0.95 * stocks_df.shape[0])
         stocks_df.dropna(axis='columns', thresh=threshold, inplace=True)
         stocks_df.dropna(axis='rows', how='any', inplace=True)
         stocks_df.sort_values('date', ascending=True, inplace=True)
@@ -104,48 +96,6 @@ class FundamentalModelDataPreparer(object):
         self.logger.debug("final data shape %s", scaled_data_arrays.shape)
 
         return scaled_data_arrays, labels
-
-        '''
-        sequence_df = pd.DataFrame()
-        sequence_length = 4  # 4 quarters as a sequence
-        unique_tickers = stocks_data['ticker'].unique().tolist()
-        for ticker in unique_tickers:
-            ticker_df = stocks_data[stocks_data['ticker'] == ticker]
-            idx = 0
-            while idx < ticker_df.shape[0] - sequence_length:
-                sequence_df = sequence_df.append(ticker_df[idx:idx + sequence_length], ignore_index=True)
-                labels_perf = self.get_performance_for_labels(sequence_df.iloc[idx, :],
-                                                         sequence_df.iloc[idx + sequence_length-1, :])
-                all_labels.append(labels_perf)
-                idx += sequence_length
-
-        sequence_df.drop(['ticker', 'date'], axis=1, inplace=True)
-        # stocks_data.drop(['close_price_next_quarter', 'baseline_price_next_quarter'], axis=1)
-
-        print("----- sequence -------")
-        print(sequence_df.shape)
-        print(sequence_df.head())
-        print(sequence_df.tail())
-
-        # while stocks_data.shape[0] % sequence_length != 0:
-        #     stocks_data.drop(stocks_data.head(1).index, inplace=True)
-
-        scaled_data_arrays = self.get_scaled_data_arrays(sequence_df)
-        
-        
-        return self.to_sequence_data(scaled_data_arrays, int(sequence_length)), all_labels
-        '''
-    '''
-    sequence_df has Q1, Q2, Q3, Q4 data
-    '''
-
-    def get_performance_for_labels(self, sequence_df_start, sequence_df_end):
-        price_perf = sequence_df_end['close_price_next_quarter'] - sequence_df_start['close_price'] / sequence_df_start[
-            'close_price']
-        baseline_perf = sequence_df_end['baseline_price_next_quarter'] - sequence_df_start['baseline_price'] / \
-                        sequence_df_start['baseline_price']
-        perf = price_perf - baseline_perf / baseline_perf
-        return perf
 
     def get_dataset_for_RNN(self, tickers=['MSFT', 'AAPL', 'INTC', 'IBM']):
         all_labels, scaled_data_value_arrays = self.get_2DShape_array_data(tickers)
