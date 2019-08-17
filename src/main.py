@@ -5,7 +5,7 @@ import sys
 from predict import ExampleClassifier
 from model import ModelWorker
 from fundamental.fundamentalmodeldatapreparer import FundamentalModelDataPreparer
-from fundamental.fundamentalworker import FundamentalWorker
+from fundamental.worker import Worker
 
 app = Flask(__name__)
 
@@ -38,7 +38,7 @@ def build():
 @app.route('/build/fundamental')
 def buildFundamentals():
     preparer = FundamentalModelDataPreparer()
-    worker = FundamentalWorker()
+    worker = Worker()
     tickers = ['MSFT', 'AAPL']
     dataset, labels = preparer.get_dataset_for_RNN(tickers)
     model, test_set = worker.build_save_model_LSTM(dataset, labels)

@@ -2,7 +2,7 @@ import logging
 from unittest import TestCase
 
 from fundamentalmodeldatapreparer import FundamentalModelDataPreparer
-from fundamentalworker import FundamentalWorker
+from worker import Worker
 
 
 class TestIntegration(TestCase):
@@ -34,17 +34,23 @@ class TestIntegration(TestCase):
         plt.show()
         '''
 
-    def test_LSTM(self):
+    def test_pipeline(self):
+
+        '''
         preparer = FundamentalModelDataPreparer(file='/tmp/test_prepare.log', loglevel=logging.DEBUG)
-        worker = FundamentalWorker(file='/tmp/test_worker_lstm.log', loglevel=logging.DEBUG)
+        worker = Worker(file='/tmp/test_worker_lstm.log', loglevel=logging.DEBUG)
         data_array, labels = preparer.get_data_from_intrinio_file()
 
         save_weights_at, test_set = worker.build_save_model_LSTM(data_array, labels, 'intrinio')
         y, rmse = worker.predict(save_weights_at, test_set)
+        '''
 
-        print('==== result LSTM ====')
-        print('predicted y = ', y)
-        print('rmse = ', rmse)
+        worker = Worker(file='/tmp/test_worker_pipeline.log', loglevel=logging.DEBUG)
+        worker.select_best_model()
+
+        # print('==== result pipe ====')
+        # print('predicted y = ', y)
+        # print('rmse = ', rmse)
 '''
     def test_baseline(self):
         preparer = FundamentalModelDataPreparer(file='/tmp/test_prepare.log', loglevel=logging.DEBUG)
@@ -84,8 +90,8 @@ class TestIntegration(TestCase):
 ---- with 0.95 threshold when cleaning data ----
 
 I0707 14:54:49.554071 139738452940544 fundamentalmodeldatapreparer.py:102] final data shape (291, 64)
-I0707 14:54:49.567022 139738452940544 fundamentalworker.py:24] creating an instance of data preparer
-I0707 14:54:49.574747 139738452940544 fundamentalworker.py:105] -- Split data -- 
+I0707 14:54:49.567022 139738452940544 worker.py:24] creating an instance of data preparer
+I0707 14:54:49.574747 139738452940544 worker.py:105] -- Split data -- 
 ==== result random forest ====
 ('predicted y = ', array([0.35534381, 0.40724636, 0.538027  , 0.41254207, 0.39099143,
        0.41078843, 0.31797703, 0.33390266, 0.36161684, 0.40014162,
@@ -102,8 +108,8 @@ I0707 14:54:49.574747 139738452940544 fundamentalworker.py:105] -- Split data --
 ('rmse = ', 0.1236711744275953)
 
 I0707 14:57:17.778769 139738452940544 fundamentalmodeldatapreparer.py:102] final data shape (291, 64)
-I0707 14:57:17.799454 139738452940544 fundamentalworker.py:24] creating an instance of data preparer
-I0707 14:57:17.800698 139738452940544 fundamentalworker.py:105] -- Split data -- 
+I0707 14:57:17.799454 139738452940544 worker.py:24] creating an instance of data preparer
+I0707 14:57:17.800698 139738452940544 worker.py:105] -- Split data -- 
 ==== result base line ====
 ('predicted y = ', array([0.35519628, 0.35322834, 0.51407134, 0.17439339, 0.4233187 ,
        0.23961284, 0.34096639, 0.3312929 , 0.22554149, 0.49748444,
@@ -120,8 +126,8 @@ I0707 14:57:17.800698 139738452940544 fundamentalworker.py:105] -- Split data --
 ('rmse = ', 0.1578942357728254)
 
 I0707 14:57:24.641089 139738452940544 fundamentalmodeldatapreparer.py:102] final data shape (291, 64)
-I0707 14:57:24.655613 139738452940544 fundamentalworker.py:24] creating an instance of data preparer
-I0707 14:57:24.656894 139738452940544 fundamentalworker.py:105] -- Split data -- 
+I0707 14:57:24.655613 139738452940544 worker.py:24] creating an instance of data preparer
+I0707 14:57:24.656894 139738452940544 worker.py:105] -- Split data -- 
 ==== result light gbm ====
 ('predicted y = ', array([0.33098512, 0.35222371, 0.53617001, 0.40357449, 0.48774164,
        0.41963897, 0.25201304, 0.34613686, 0.34578819, 0.3598679 ,
@@ -142,8 +148,8 @@ I0707 14:57:24.656894 139738452940544 fundamentalworker.py:105] -- Split data --
 ---- with 0.99 threshold when cleaning data ----
 
 I0707 14:41:28.463784 140345204639488 fundamentalmodeldatapreparer.py:102] final data shape (307, 54)
-I0707 14:41:28.470638 140345204639488 fundamentalworker.py:24] creating an instance of data preparer
-I0707 14:41:28.475944 140345204639488 fundamentalworker.py:105] -- Split data -- 
+I0707 14:41:28.470638 140345204639488 worker.py:24] creating an instance of data preparer
+I0707 14:41:28.475944 140345204639488 worker.py:105] -- Split data -- 
 ==== result base line ====
 ('predicted y = ', array([0.17439339, 0.34096639, 0.23961284, 0.22554149, 0.4233187 ,
        0.35519628, 0.35322834, 0.3312929 , 0.49748444, 0.39758949,
@@ -161,8 +167,8 @@ I0707 14:41:28.475944 140345204639488 fundamentalworker.py:105] -- Split data --
 ('rmse = ', 0.1553597434050116)
 
 I0707 14:40:04.288475 140345204639488 fundamentalmodeldatapreparer.py:102] final data shape (307, 54)
-I0707 14:40:04.295069 140345204639488 fundamentalworker.py:24] creating an instance of data preparer
-I0707 14:40:04.296380 140345204639488 fundamentalworker.py:105] -- Split data -- 
+I0707 14:40:04.295069 140345204639488 worker.py:24] creating an instance of data preparer
+I0707 14:40:04.296380 140345204639488 worker.py:105] -- Split data -- 
 ==== result random forest ====
 ('predicted y = ', array([0.39244395, 0.30408578, 0.38282393, 0.35675538, 0.35364764,
        0.32532338, 0.40291782, 0.35537162, 0.39916249, 0.30769166,
@@ -181,8 +187,8 @@ I0707 14:40:04.296380 140345204639488 fundamentalworker.py:105] -- Split data --
 
 
 I0707 14:41:36.510744 140345204639488 fundamentalmodeldatapreparer.py:102] final data shape (307, 54)
-I0707 14:41:36.519081 140345204639488 fundamentalworker.py:24] creating an instance of data preparer
-I0707 14:41:36.522558 140345204639488 fundamentalworker.py:105] -- Split data -- 
+I0707 14:41:36.519081 140345204639488 worker.py:24] creating an instance of data preparer
+I0707 14:41:36.522558 140345204639488 worker.py:105] -- Split data -- 
 ==== result light gbm ====
 ('predicted y = ', array([0.36970006, 0.26864795, 0.40472391, 0.30358362, 0.43780825,
        0.29375074, 0.46916666, 0.3364034 , 0.42743501, 0.27378074,

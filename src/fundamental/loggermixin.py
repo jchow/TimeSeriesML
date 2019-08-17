@@ -14,7 +14,12 @@ class LoggerMixin(object):
         ])
 
         logger = logging.getLogger(name)
-        fh = logging.FileHandler(file)
+
+        # To avoid duplicate handler create
+        if logger.handlers:
+            return logger
+
+        fh = logging.FileHandler(self.file)
         formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
         fh.setFormatter(formatter)
         logger.addHandler(fh)

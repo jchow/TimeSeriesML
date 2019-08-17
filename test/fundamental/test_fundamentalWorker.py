@@ -1,5 +1,5 @@
 from unittest import TestCase
-from fundamentalworker import FundamentalWorker
+from worker import Worker
 import numpy as np
 import numpy.testing as npt
 
@@ -28,7 +28,7 @@ class TestFundamentalWorker(TestCase):
         labels = np.array(get_labels(), dtype=float)
         expected_test_X, expected_test_y = input_data[3:, :], labels[3:]
 
-        worker = FundamentalWorker()
+        worker = Worker()
         model, actual_test, scaler = worker.build_save_model_LSTM(input_data, labels, False)
 
         npt.assert_allclose(actual_test[0], expected_test_X)

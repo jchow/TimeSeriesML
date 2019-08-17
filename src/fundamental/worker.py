@@ -1,56 +1,79 @@
 import logging
 import os
-from math import sqrt
 
 from keras.callbacks import ModelCheckpoint
 from keras.layers import Dense
 from keras.layers import LSTM
 from keras.models import Sequential
 from keras.models import load_model
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_squared_error
-from sklearn.metrics import mean_squared_log_error
 from lightgbm import LGBMRegressor
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.pipeline import Pipeline
+
 from loggermixin import LoggerMixin
+from predictor import Predictor
+from cleaner import Cleaner
+from dataprocessor import Processor
+from dataretriever import Retriever
 
 
-class FundamentalWorker(LoggerMixin, object):
+class Worker(LoggerMixin, object):
     def __init__(self, file='temp.log', loglevel=logging.INFO):
-        super.__init__(file, loglevel)
-        self.logger.debug('Created an instance of ', self.__class__.__name__)
-
-    def predict_light_gbm(self, data_value_arrays, labels):
-
-        # Split into train and test sets 7-3
-        X_train, y_train, X_test, y_test = self.split_tran_test_data(data_value_arrays, labels)
-
-        model = LGBMRegressor(n_estimators=1000, learning_rate=0.01)
-
-        model.fit(X_train, y_train)
-        y_predicted = model.predict(X_test)
-
-        rmse = self.reg_error(y_predicted, y_test)
-
-        return y_predicted, rmse
+        super().__init__(file, loglevel)
+        self.logger.debug('Created an instance of %s', self.__class__.__name__)
 
     @staticmethod
-    def reg_error(y_predicted, y_test):
-        # return sqrt(mean_squared_error(y_predicted, y_test))
-        return sqrt(mean_squared_log_error(y_predicted, y_test))
+    def get_test_prediction(data_value_arrays, labels, model):
+        p = Predictor(model, file='/tmp/predict_gbm.log', loglevel=logging.DEBUG)
+        y_predicted_df = p.predict(data_value_arrays, labels)
+        rmse = p.score(data_value_arrays, labels)
+        return rmse, y_predicted_df
 
-    def predict_random_forest(self, data_value_arrays, labels):
+    def select_best_model(self):
+        data_df = Retriever(file='/tmp/retrieve_data.log', loglevel=logging.DEBUG).getData()
+        steps = [('clean_data', Cleaner(file='/tmp/clean_data.log', loglevel=logging.DEBUG)),
+                 ('process_data', Processor(file='/tmp/process_data.log', loglevel=logging.DEBUG))]
 
+        p = Pipeline(steps)
+        data_array, labels = p.fit_transform(data_df)
+
+        # random forest
         model = RandomForestRegressor(n_estimators=1000, n_jobs=-1, random_state=0)
+        predictor = Predictor(model, 5, file='/tmp/predictor.log', loglevel=logging.DEBUG)
+        self.logger.info('=== Random Forest rmse : {}'.format(predictor.score(data_array, labels)))
 
+        # LGB
+        model = LGBMRegressor(n_estimators=1000, learning_rate=0.01)
+        predictor = Predictor(model, 5, file='/tmp/predictor.log', loglevel=logging.DEBUG)
+        self.logger.info('=== LGB rmse : {}'.format(predictor.score(data_array, labels)))
+
+        # Baseline
+        _, rmse = self.predict_baseline(data_array, labels)
+        self.logger.info('=== baseline rmse : {}'.format(rmse))
+
+
+    '''
+    For the simplest guess for future performance, use the performance of T-1 to predict T
+    '''
+    def predict_baseline(self, data_array, labels):
         # Split into train and test sets 7-3
-        X_train, y_train, X_test, y_test = self.split_tran_test_data(data_value_arrays, labels)
+        X_train, y_train, X_test, y_test = self.split_tran_test_data(data_array, labels)
 
-        model.fit(X_train, y_train)
-        y_predicted = model.predict(X_test)
-
-        rmse = self.reg_error(y_predicted, y_test)
+        y_predicted = y_test[:-1]
+        y_test_shift = y_test[1:]
+        rmse = Predictor.reg_error(y_predicted, y_test_shift)
 
         return y_predicted, rmse
+
+    def predict_light_gbm(self, data_value_arrays, labels):
+        model = LGBMRegressor(n_estimators=1000, learning_rate=0.01)
+        rmse, y_predicted_df = self.get_test_prediction(data_value_arrays, labels, model)
+        return y_predicted_df, rmse
+
+    def predict_random_forest(self, data_value_arrays, labels):
+        model = RandomForestRegressor(n_estimators=1000, n_jobs=-1, random_state=0)
+        rmse, y_predicted_df = self.get_test_prediction(data_value_arrays, labels, model)
+        return y_predicted_df, rmse
 
     def build_save_model_LSTM(self, data_value_arrays, labels, custom_name='', plot=True):
 
@@ -151,15 +174,3 @@ class FundamentalWorker(LoggerMixin, object):
         # For the actual y
         '''
 
-    '''
-    For the simplest guess for future performance, use the performance of T-1 to predict T
-    '''
-    def predict_baseline(self, data_array, labels):
-        # Split into train and test sets 7-3
-        X_train, y_train, X_test, y_test = self.split_tran_test_data(data_array, labels)
-
-        y_predicted = y_test[:-1]
-        y_test_shift = y_test[1:]
-        rmse = self.reg_error(y_predicted, y_test_shift)
-
-        return y_predicted, rmse
