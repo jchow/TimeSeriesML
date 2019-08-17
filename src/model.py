@@ -24,6 +24,7 @@ def compileModel():
     model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
     return model
 
+
 class ModelWorker(object):
     def __init__(self, model_dir):
         self.model_dir = model_dir
@@ -90,4 +91,4 @@ class ModelWorker(object):
         one_hot_labels = self.transform_one_hot(labels)       
         X_train, X_test, Y_train, Y_test = train_test_split(X, one_hot_labels, test_size=0.33, random_state=seed)
         return X_train, X_test, Y_train, Y_test
-        
+

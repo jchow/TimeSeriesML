@@ -1,9 +1,9 @@
-from loggermixin import LoggerMixin
-from sklearn import base
 import logging
-import pandas as pd
 import os
-import numpy as np
+
+import pandas as pd
+
+from loggermixin import LoggerMixin
 
 
 class Retriever(LoggerMixin):

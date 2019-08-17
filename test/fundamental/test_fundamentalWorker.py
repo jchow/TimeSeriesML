@@ -22,7 +22,7 @@ def get_labels():
     return [1, 0.5, 0, 0, 1]
 
 
-class TestFundamentalWorker(TestCase):
+class TestWorker(TestCase):
     def test_build_model(self):
         input_data = np.array(get_data_arrays(), dtype=float)
         labels = np.array(get_labels(), dtype=float)

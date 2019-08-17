@@ -1,9 +1,9 @@
-from loggermixin import LoggerMixin
-from sklearn import base
 import logging
+
+from sklearn import base
 from sklearn.preprocessing import MinMaxScaler
-import pandas as pd
-import numpy as np
+
+from loggermixin import LoggerMixin
 
 
 class Processor(LoggerMixin, base.TransformerMixin):

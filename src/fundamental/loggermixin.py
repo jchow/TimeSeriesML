@@ -15,7 +15,7 @@ class LoggerMixin(object):
 
         logger = logging.getLogger(name)
 
-        # To avoid duplicate handler create
+        # To avoid duplicate handler creation
         if logger.handlers:
             return logger
 

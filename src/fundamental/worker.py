@@ -29,7 +29,9 @@ class Worker(LoggerMixin, object):
         rmse = p.score(data_value_arrays, labels)
         return rmse, y_predicted_df
 
-    def select_best_model(self):
+    def select_model(self):
+        model_rmse = {}
+
         data_df = Retriever(file='/tmp/retrieve_data.log', loglevel=logging.DEBUG).getData()
         steps = [('clean_data', Cleaner(file='/tmp/clean_data.log', loglevel=logging.DEBUG)),
                  ('process_data', Processor(file='/tmp/process_data.log', loglevel=logging.DEBUG))]
@@ -40,16 +42,37 @@ class Worker(LoggerMixin, object):
         # random forest
         model = RandomForestRegressor(n_estimators=1000, n_jobs=-1, random_state=0)
         predictor = Predictor(model, 5, file='/tmp/predictor.log', loglevel=logging.DEBUG)
-        self.logger.info('=== Random Forest rmse : {}'.format(predictor.score(data_array, labels)))
+
+        score = predictor.score(data_array, labels)
+        model_rmse[model] = score
+
+        self.logger.info('=== Random Forest rmse : {}'.format(score))
+
 
         # LGB
         model = LGBMRegressor(n_estimators=1000, learning_rate=0.01)
         predictor = Predictor(model, 5, file='/tmp/predictor.log', loglevel=logging.DEBUG)
-        self.logger.info('=== LGB rmse : {}'.format(predictor.score(data_array, labels)))
+
+        score = predictor.score(data_array, labels)
+        model_rmse[model] = score
+
+        self.logger.info('=== LGB rmse : {}'.format(score))
 
         # Baseline
         _, rmse = self.predict_baseline(data_array, labels)
+        model_rmse[None] = rmse
+
         self.logger.info('=== baseline rmse : {}'.format(rmse))
+
+        # LSTM
+        save_weights_at, test_set = self.build_save_model_LSTM(data_array, labels, 'intrinio')
+        model, y, rmse = self.predict(save_weights_at, test_set)
+        model_rmse[model] = rmse
+        self.logger.info('=== baseline rmse : {}'.format(rmse))
+
+        # Select the model with min rmse
+        m = min(model_rmse, key=model_rmse.get)
+        return m, model_rmse[m]
 
 
     '''
@@ -75,7 +98,7 @@ class Worker(LoggerMixin, object):
         rmse, y_predicted_df = self.get_test_prediction(data_value_arrays, labels, model)
         return y_predicted_df, rmse
 
-    def build_save_model_LSTM(self, data_value_arrays, labels, custom_name='', plot=True):
+    def build_save_model_LSTM(self, data_value_arrays, labels, custom_name=''):
 
         # Split into train and test sets 7-3
         X_train, y_train, X_test, y_test = self.split_tran_test_data(data_value_arrays, labels)
@@ -103,18 +126,9 @@ class Worker(LoggerMixin, object):
         history = model.fit(X_train, y_train, epochs=30, batch_size=10, validation_data=(X_test, y_test), verbose=2,
                             shuffle=False, callbacks=[save_best])
 
-        # plot history
-        if plot:
-            self.plot_result(history)
+        self.logger.debug("History: %s", history)
 
         return save_weights_at, (X_test, y_test)
-
-    def plot_result(self, history):
-        pass
-        # pyplot.plot(history.history['loss'], label='train')
-        # pyplot.plot(history.history['val_loss'], label='test')
-        # pyplot.legend()
-        # pyplot.show()
 
     def split_tran_test_data(self, data_value_arrays, y):
         # why not use sklearn train test split?
@@ -149,28 +163,5 @@ class Worker(LoggerMixin, object):
         # Found the predicted error
         rmse = self.reg_error(flatten_predicted_y, test_y)
 
-        return flatten_predicted_y, rmse
-
-        '''
-        # No need to invert transform scaling? - basically the labels are not part of the input data and have different
-        #  scaling. We might need to separately scale the label.
-        inv_predicted_y = scaler.inverse_transform(predicted_y)
-        inv_test_y = scaler.inverse_transform(test_y)
-
-        # predicted_y is in the shape [[1],[2],[0]], test_y is [1,2,0], flatten it to shape of test_y
-        print("---- predicted y - Before reshape ----")
-        print(inv_predicted_y)
-        inv_predicted_y_to_test_shape = inv_predicted_y.flatten().tolist()
-        rmse = sqrt(mean_squared_error(inv_predicted_y_to_test_shape, inv_test_y))
-
-        return (inv_predicted_y_to_test_shape, inv_test_y), rmse
-
-        # Scale it back to real values
-        # For the predicted y
-        # scaler = MinMaxScaler(feature_range=(0, 1))
-        # predicted_y_with_test = concatenate((predicted_y, test_X[:, 1:]), axis=1)  # why?
-        # inv_predicted_y = scaler.inverse_transform(predicted_y_with_test)
-
-        # For the actual y
-        '''
+        return model, flatten_predicted_y, rmse
 

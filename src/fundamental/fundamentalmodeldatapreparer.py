@@ -8,10 +8,6 @@ import logging
 from loggermixin import LoggerMixin
 
 
-def convert2Stationary(data_table):
-    return data_table  # TODO make it time stationary by differencing maybe
-
-
 def isStationary(data_frame_table):
     """ Test for stationary
     :rtype: Boolean
