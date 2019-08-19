@@ -1,6 +1,9 @@
-# README #
+## Price performance prediction of single stocks using fundamental data ##
 
-This README would normally document whatever steps are necessary to get your application up and running.
+Fundamental data includes values financial ratios like PE, revenues, market capitals etc.
+Time series regression is performed using various machine learning methods on a set of technology stocks. 
+
+A baseline performance of using the pervious data as prediction is used to compare with that of Random Forest, Light LGB
 
 ### What is this repository for? ###
 
