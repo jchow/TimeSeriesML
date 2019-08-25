@@ -27,13 +27,65 @@ Other cross validation [methods](https://towardsdatascience.com/time-series-nest
 
 ### High level steps ###
 
+* Data retrival and pre-processing
 
 
-### What is this repository for? ###
+```python
 
-Deep learning for various basic examples and ultimately for fundamental analysis in stock market.
+      data_df = Retriever(file='/tmp/retrieve_data.log', loglevel=logging.DEBUG).getData()
+      steps = [('clean_data', Cleaner(file='/tmp/clean_data.log', loglevel=logging.DEBUG)),
+            ('process_data', Processor(file='/tmp/process_data.log', loglevel=logging.DEBUG))]
+   
+      p = Pipeline(steps)
+      data_array, labels = p.fit_transform(data_df)
+           
+```
 
-### How do I get set up? ###
+* Regression and score calculation
+
+``` python
+
+      # random forest
+      model = RandomForestRegressor(n_estimators=1000, n_jobs=-1, random_state=0)
+      predictor = Predictor(model, 5, file='/tmp/predictor.log', loglevel=logging.DEBUG)
+   
+      score = predictor.score(data_array, labels)
+```
+
+* LSTM takes different steps especially with the extra step to save the model for reusing and of cause the layers setup. 
+
+``` python
+
+      # Split into train and test sets 7-3
+      X_train, y_train, X_test, y_test = self.split_tran_test_data(data_value_arrays, labels)
+        
+      model = Sequential()
+      model.add(LSTM(50, input_shape=(X_train.shape[0], X_train.shape[1])))
+      model.add(Dense(1))
+      model.compile(loss='mae', optimizer='adam')
+      
+      save_weights_at = os.path.join('keras_models', custom_name+'_Stock_Fundamental_RNN_weights.hdf5')
+      save_best = ModelCheckpoint(save_weights_at, monitor='val_loss', verbose=0,
+                                    save_best_only=True, save_weights_only=False, mode='min',
+                                    period=1)
+      history = model.fit(X_train, y_train, epochs=30, batch_size=10, validation_data=(X_test, y_test), verbose=2,
+                            shuffle=False, callbacks=[save_best])
+```
+
+### Results ###
+
+
+### Retrospective ###
+
+1. The difference in performance of the models in scope is not marginal. This is probably due to the small amount
+   of data for training. Question - what regression time seies ML is best for limited amount of data?
+2. Deep learning is not necessarily better than traditional machine learning methodology.
+3. Evaluation of the performance of time series regression can be quite tricky. More tunning needs to be done.
+4. It is important to have a baseline prediction (the simplest model ever for prediction) for comparison.
+
+
+
+### Reference to setting example Flask service in Heroku ###
 
 Reference 
 https://github.com/bzamecnik/deep-instrument-heroku
