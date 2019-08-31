@@ -29,6 +29,10 @@ Other cross validation [methods](https://towardsdatascience.com/time-series-nest
 
 * Data retrival and pre-processing
 
+Due to different company profiles, some of the fundamental data does not exist for a number of companies.
+This creates some NaN values for different columns. Columns with a certain percentage od NaN values are dropped to retain more rows of data.
+
+Standarization of values were also applied (market cap and price are on very different scale).
 
 ```python
 
@@ -43,6 +47,9 @@ Other cross validation [methods](https://towardsdatascience.com/time-series-nest
 
 * Regression and score calculation
 
+Price performance from next quarter is used to create the labels for the time series regression. 
+More could be done for hyperparameters tunning (e.g. GridSearch) and features engineering (e.g. PCA ) for each model.
+
 ``` python
 
       # random forest
@@ -53,6 +60,8 @@ Other cross validation [methods](https://towardsdatascience.com/time-series-nest
 ```
 
 * LSTM takes different steps especially with the extra step to save the model for reusing and of cause the layers setup. 
+
+Pipeline is not used here obviously because of the set up of layers and diff
 
 ``` python
 
