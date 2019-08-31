@@ -29,10 +29,10 @@ Other cross validation [methods](https://towardsdatascience.com/time-series-nest
 
 * Data retrival and pre-processing
 
-Due to different company profiles, some of the fundamental data does not exist for a number of companies.
-This creates some NaN values for different columns. Columns with a certain percentage od NaN values are dropped to retain more rows of data.
+   Due to different company profiles, some of the fundamental data does not exist for a number of companies.
+   This creates some NaN values for different columns. Columns with a certain percentage od NaN values are dropped to retain more rows of data.
 
-Standarization of values were also applied (market cap and price are on very different scale).
+   Standarization of values were also applied (market cap and price are on very different scale).
 
 ```python
 
@@ -82,6 +82,13 @@ Pipeline is not used here obviously because of the set up of layers and diff
 ```
 
 ### Results ###
+
+RMSE for different models with different thresholds of removing columns with NaN:
+|Model |0.95 threshold | 0.99 threshold |
+|---------|---------------|----------------|
+|Base line|0.157894 | 0.155359|
+|Random Forest|0.123671 |0.132346 |
+|Light GBM|0.128006 |0.139742 |
 
 
 ### Retrospective ###
