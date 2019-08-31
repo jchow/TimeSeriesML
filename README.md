@@ -84,12 +84,15 @@ Pipeline is not used here obviously because of the set up of layers and diff
 ### Results ###
 
 RMSE for different models with different thresholds of removing columns with NaN:
+
 |Model |0.95 threshold | 0.99 threshold |
-|---------|---------------|----------------|
+|:---|:---|:---|
 |Base line|0.157894 | 0.155359|
 |Random Forest|0.123671 |0.132346 |
 |Light GBM|0.128006 |0.139742 |
 
+Error is generally larger with a more restrictive cleaning policy. This is probably because the amount of data for training the model decreases with more columns being deleted.
+In addition light GBM seems to perform better than other options.
 
 ### Retrospective ###
 
