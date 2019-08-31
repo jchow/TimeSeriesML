@@ -118,16 +118,16 @@ Fix gunicorn not found:
 heroku run pip install gunicorn
 
 Deploy to Heroku(with piplines dev/staging):
-1. heroku create deepfundamental-staging --remote dev
-2. heroku fork -a deepfundamental-staging deepfundamental
-3. git remote add staging https://git.heroku.com/deepfundamental-staging.git
-4. git push staging master
-5. (create deepfundamental similarly)
-6. heroku pipelines:create -a deepfundamental
-7. heroku pipelines:add -a deepfundamental-staging deepfundamental
-8. heroku pipelines:add -a deepfundamental deepfundamental
-9. heroku pipelines:promote -r staging
 
-### Contribution guidelines ###
+1. heroku create deepfundamental-staging --remote dev
+1. heroku fork -a deepfundamental-staging deepfundamental
+1. git remote add staging https://git.heroku.com/deepfundamental-staging.git
+1. git push staging master
+1. (create deepfundamental similarly)
+1. heroku pipelines:create -a deepfundamental
+1. heroku pipelines:add -a deepfundamental-staging deepfundamental
+1. heroku pipelines:add -a deepfundamental deepfundamental
+1. heroku pipelines:promote -r staging
+
 
 
